@@ -1,0 +1,109 @@
+---
+    - name: Restart docker
+      ansible.builtin.service:
+        name: docker
+        state: restarted
+
+    - name: Check that docker is running
+      ansible.builtin.service_facts:
+
+    - name: Fail if docker is not running
+      ansible.builtin.fail:
+        msg: "Docker service is not running!"
+      when: ansible_facts.services['docker.service'].state != "running"
+
+    - name: Display docker service state
+      debug:
+        var: ansible_facts.services['docker.service'].state
+
+    - name: Create directories
+      ansible.builtin.file:
+        dest: "{{ item }}"
+        state: directory
+        mode: '0755'
+      loop:
+        - /opt/maxkb
+        - /opt/maxkb/data
+        - /opt/maxkb/python-packages
+        - /opt/maxkb/logs
+        - /opt/maxkb/html
+        - /opt/maxkb/ssl
+
+    - name: Deploy docker-compose.yml
+      ansible.builtin.copy:
+        src: templates/docker-compose-maxkb.yml.j2
+        dest: /opt/maxkb/docker-compose.yml
+        mode: '0644'
+    
+    - name: Deploy nginx config
+      ansible.builtin.template:
+        src: templates/nginx-maxkb-web.j2
+        dest: /opt/maxkb/{{ maxkb_domain }}.conf
+        mode: '0644'
+    - name: Deploy ssl cert 
+      ansible.builtin.copy:
+        src: files/{{ maxkb_domain }}.pem
+        dest: /etc/ssl/certs/{{ maxkb_domain }}.pem
+        mode: '0644'
+        owner: root
+        group: root
+        
+    - name: Depoly ssl key
+      ansible.builtin.copy:
+        src: files/{{ maxkb_domain }}.key
+        dest: /etc/ssl/private/{{ maxkb_domain }}.key
+        mode: '0600'
+        owner: root
+        group: root
+    - name: Depoly custom error page
+      ansible.builtin.copy:
+        src: files/custom_error.html
+        dest: /opt/maxkb/html/custom_error.html
+        mode: '0644'
+
+    - name: Depoly njs admin_auth.js
+      ansible.builtin.copy:
+        src: files/admin_auth.js
+        dest: /opt/maxkb/admin_auth.js
+        mode: '0644'
+    - name: Depoly /opt/maxkb/nginx.conf with njs module enabled
+      ansible.builtin.template:
+        src: templates/nginx-maxkb.j2
+        dest: /opt/maxkb/nginx.conf
+        mode: '0644'
+    - name: Ensure /etc/nginx/.htpasswd exists and has the entry with hashed password
+      lineinfile:
+        path: /opt/maxkb/.htpasswd
+        create: yes
+        regexp: '^{{ nginx_auth_user }}:'
+        line: '{{ nginx_auth_user }}:{{ nginx_auth_password_hash }}'
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Start docker-compose services
+      ansible.builtin.command:
+        cmd: docker compose up -d
+        chdir: /opt/maxkb
+
+    - name: List containers (like `docker ps`)
+      community.docker.docker_host_info:
+        containers: true          
+        containers_all: true      
+      register: hostinfo
+
+    - name: Show names and statuses
+      debug:
+        msg: "{{ item.Names }} -> {{ item.Status }}"
+      loop: "{{ hostinfo.containers }}"
+
+    - name: Fail if any container is not Up
+      ansible.builtin.fail:
+        msg: "Container {{ item.Names }} is NOT Up ({{ item.Status }})"
+      when: item.Status is not regex('^Up\\b')
+      loop: "{{ hostinfo.containers }}"
+      loop_control:
+        label: "{{ item.Names }}"
+        
+
+    

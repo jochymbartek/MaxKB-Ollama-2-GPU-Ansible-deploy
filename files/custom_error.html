@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ups... coś poszło nie tak!</title>
+<style>
+  body {
+    background: #121212;
+    color: #f1f1f1;
+    font-family: 'Segoe UI', Roboto, sans-serif;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+  }
+  .emoji {
+    font-size: 5rem;
+    margin-bottom: 1rem;
+    animation: float 2s ease-in-out infinite;
+  }
+  @keyframes float {
+    0% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
+    100% { transform: translateY(0); }
+  }
+  h1 {
+    font-size: 1.8rem;
+    color: #ffffffcc;
+    text-align: center;
+  }
+  p {
+    color: #cccccc;
+    margin-top: 0.5rem;
+  }
+  a {
+    color: #64b5f6;
+    text-decoration: none;
+    margin-top: 1rem;
+    display: inline-block;
+  }
+  a:hover {
+    text-decoration: underline;
+  }
+</style>
+</head>
+<body>
+  <div class="emoji">😊</div>
+  <h1>Ups... coś poszło nie tak!</h1>
+  <p>Spróbuj ponownie za chwilę albo wróć na stronę główną.</p>
+  <a href="/">← Wróć do strony głównej</a>
+</body>
+</html>

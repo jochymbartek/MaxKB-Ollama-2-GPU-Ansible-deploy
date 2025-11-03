@@ -1,0 +1,93 @@
+server {
+    listen 80;
+    server_name {{ maxkb_domain }};
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name {{ maxkb_domain }};
+
+    ssl_certificate     /etc/ssl/certs/{{ maxkb_domain }}.pem;
+    ssl_certificate_key /etc/ssl/private/{{ maxkb_domain }}.key;
+
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "no-referrer" always;
+    add_header Permissions-Policy "geolocation=(), microphone=()" always;
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:;" always;
+
+    error_page 403 404 500 502 503 504 /custom_error.html;
+    root /etc/nginx/html;
+
+    location = /custom_error.html {
+        internal;
+        root /etc/nginx/html;
+    }
+
+    location = /healthz {
+        return 200;
+    }
+
+
+    location = /_admin_check {
+        internal;
+        js_content admin_auth.check;
+    }
+
+    location ^~ /admin/ {
+        auth_request /_admin_check;
+        error_page 401 = @admin_basic;
+
+        proxy_pass http://maxkb:8080;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_http_version 1.1;
+        proxy_ignore_headers X-Accel-Buffering;
+        proxy_intercept_errors on;
+    }
+
+    location ~ ^/doc_chat/ {
+        auth_request /_admin_check;
+        error_page 401 = @admin_basic;
+
+        proxy_pass http://maxkb:8080;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_http_version 1.1;
+        proxy_ignore_headers X-Accel-Buffering;
+        proxy_intercept_errors on;
+    }
+
+    location @admin_basic {
+        auth_basic "Restricted Area";
+        auth_basic_user_file /etc/nginx/.htpasswd;
+        js_content admin_auth.set_cookie_and_redirect;
+    }
+
+    location ^~ /chat/api/ {
+        add_header Cache-Control "no-store" always;
+        proxy_pass http://maxkb:8080$request_uri;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_http_version 1.1;
+        proxy_ignore_headers X-Accel-Buffering;
+        proxy_intercept_errors on;
+    }
+
+    location / {
+        proxy_pass http://maxkb:8080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_http_version 1.1;
+        proxy_intercept_errors on;
+    }
+}

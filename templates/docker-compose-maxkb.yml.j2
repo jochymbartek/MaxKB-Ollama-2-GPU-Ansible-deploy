@@ -1,0 +1,48 @@
+version: "3.8"
+
+networks:
+  maxkb-net: {}
+
+services:
+  maxkb:
+    image: 1panel/maxkb:v2.2.1
+    container_name: maxkb
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+    expose:
+      - "3000"                                 
+      - /opt/maxkb/data:/var/lib/postgresql/data
+      - /opt/maxkb/python-packages:/opt/maxkb/app/sandbox/python-packages
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks: [maxkb-net]
+
+  nginx:
+    image: nginx:stable
+    container_name: maxkb-nginx
+    networks: [maxkb-net]
+    depends_on:
+      - maxkb
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /opt/maxkb/nginx.conf:/etc/nginx/nginx.conf:ro
+      - /opt/maxkb/{{ maxkb_domain }}.conf:/etc/nginx/conf.d/{{ maxkb_domain }}.conf:ro
+      - /opt/maxkb/admin_auth.js:/etc/nginx/js/admin_auth.js:ro
+      - /opt/maxkb/ssl:/etc/nginx/ssl:ro
+      - /opt/maxkb/logs:/var/log/nginx:rw
+      - /opt/maxkb/html/custom_error.html:/etc/nginx/html/custom_error.html:ro
+      - /etc/ssl/certs/{{ maxkb_domain }}.pem:/etc/ssl/certs/{{ maxkb_domain }}.pem:ro
+      - /etc/ssl/private/{{ maxkb_domain }}s.key:/etc/ssl/private/{{ maxkb_domain }}.key:ro
+      - /opt/maxkb/.htpasswd:/etc/nginx/.htpasswd:ro
+
+
+
+
+

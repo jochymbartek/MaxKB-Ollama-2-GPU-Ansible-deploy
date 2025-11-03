@@ -1,0 +1,13 @@
+---
+- name: Setup servers
+  hosts: all
+  become: true
+  collections:
+    - community.docker
+
+  tasks:
+    - name: Install MaxKB
+      import_tasks: maxkb.yml
+
+    - name: Install Ollama
+      import_tasks: ollama.yml

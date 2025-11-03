@@ -1,0 +1,66 @@
+---
+    - name: Restart docker
+      ansible.builtin.service:
+        name: docker
+        state: restarted
+
+    - name: Check that docker is running
+      ansible.builtin.service_facts:
+
+    - name: Fail if docker is not running
+      ansible.builtin.fail:
+        msg: "Docker service is not running!"
+      when: ansible_facts.services['docker.service'].state != "running"
+
+    - name: Display docker service state
+      debug:
+        var: ansible_facts.services['docker.service'].state
+
+    - name: Create directories
+      ansible.builtin.file:
+        dest: /opt/ollama
+        state: directory
+        mode: '0755'
+
+    - name: Deploy docker-compose.yml
+      ansible.builtin.copy:
+        src: templates/docker-compose-ollama.yml.j2
+        dest: /opt/ollama/docker-compose.yml
+        mode: '0644'
+    
+    - name: Deploy nginx config
+      ansible.builtin.copy:
+        src: templates/nginx-lb-ollama.j2
+        dest: /opt/ollama/nginx-lb.conf
+        mode: '0644'
+    
+    - name: Start docker-compose services
+      ansible.builtin.command:
+        cmd: docker compose up -d
+        chdir: /opt/ollama
+
+    - name: List containers (like `docker ps`)
+      community.docker.docker_host_info:
+        containers: true          # zbiera listę uruchomionych
+        containers_all: true      
+      register: hostinfo
+
+    - name: Show names and statuses
+      debug:
+        msg: "{{ item.Names }} -> {{ item.Status }}"
+      loop: "{{ hostinfo.containers }}"
+
+    - name: Fail if any container is not Up
+      ansible.builtin.fail:
+        msg: "Container {{ item.Names }} is NOT Up ({{ item.Status }})"
+      when: item.Status is not regex('^Up\\b')
+      loop: "{{ hostinfo.containers }}"
+      loop_control:
+        label: "{{ item.Names }}"
+
+    - name: Pull model in running container via Docker API
+      community.docker.docker_container_exec:
+        container: ollama0
+        command: "ollama pull llama3.1:8b"
+
+    

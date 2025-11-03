@@ -1,0 +1,65 @@
+version: "3.8"
+
+networks:
+  ollama-net:
+
+services:
+  nginx-lb:
+    image: nginx:stable
+    container_name: nginx-ollama-lb
+    depends_on: [ollama0, ollama1]
+    ports:
+      - "7869:7869"   # load balancer port
+    volumes:
+      - ./nginx-lb.conf:/etc/nginx/nginx.conf:ro
+    restart: unless-stopped
+    networks:
+      - ollama-net
+
+  ollama0:
+    image: ollama/ollama:0.11.10
+    container_name: ollama0
+    restart: unless-stopped
+    runtime: nvidia
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=0
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+      - OLLAMA_HOST=0.0.0.0:11434
+      - OLLAMA_MAX_LOADED_MODELS=1
+      - OLLAMA_NUM_PARALLEL=3
+      - OLLAMA_MAX_QUEUE=512
+      - OLLAMA_KEEP_ALIVE=24h
+      - OLLAMA_MODELS=/models    
+    volumes:
+      - /opt/ollama/models:/models     
+    networks:
+      - ollama-net
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:11434/api/tags"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  ollama1:
+    image: ollama/ollama:0.11.10
+    container_name: ollama1
+    restart: unless-stopped
+    runtime: nvidia
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=1
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+      - OLLAMA_HOST=0.0.0.0:11434
+      - OLLAMA_MAX_LOADED_MODELS=1
+      - OLLAMA_NUM_PARALLEL=3
+      - OLLAMA_MAX_QUEUE=512
+      - OLLAMA_KEEP_ALIVE=24h
+      - OLLAMA_MODELS=/models
+    volumes:
+      - /opt/ollama/models:/models
+    networks:
+      - ollama-net
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:11434/api/tags"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
