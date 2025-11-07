@@ -7,7 +7,7 @@ SSH_PUBKEY=""
 
 
 echo "=== 🔧 Aktualizacja systemu ==="
-sudo apt update -y && sudo apt upgrade -y
+sudo apt update -y 
 
 
 echo "=== 📦 Instalacja podstawowych pakietów ==="
